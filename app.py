@@ -138,76 +138,62 @@ def get_recipes_gemini(ingredients):
         return None
 
 def main():
-    # Initialize session state
-    if 'analyzed_ingredients' not in st.session_state:
-        st.session_state.analyzed_ingredients = None
-    if 'current_image_bytes' not in st.session_state:
-        st.session_state.current_image_bytes = None
-    if 'original_image' not in st.session_state:
-        st.session_state.original_image = None
-    if 'processed_image' not in st.session_state:
-        st.session_state.processed_image = None
-
     # st.image("./lmc.png", width=800)  # Changed from use_container_width to width parameter
     st.title("Let Me Cook! 👨🏻‍🍳🔥")
     st.write("Stop wasting food and start creating. Take a photo of your ingredients and receive instant recipe recommendation.")
 
     source = st.radio("Select Image Source", ("Upload an image 🖼️", "Use Camera 📸"))
+    
+    original_image = None
+    processed_image = None
+    analyzed_ingredients = None
 
     if source == "Upload an image 🖼️":
         uploaded_file = st.file_uploader("Upload an image of ingredients", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
-            # Only process new images
-            current_bytes = uploaded_file.getvalue()
-            if st.session_state.current_image_bytes != current_bytes:
-                st.session_state.current_image_bytes = current_bytes
-                image = Image.open(uploaded_file)
-                
-                # Apply preprocessing and store in session state
-                clahe_img, compressed_img = preprocess_image(image)
-                st.session_state.original_image = image
-                st.session_state.processed_image = clahe_img
-                
-                # Analyze new image
-                buffer = io.BytesIO()
-                compressed_img.save(buffer, format="JPEG")
-                image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
+            image = Image.open(uploaded_file)
+            
+            # Apply preprocessing
+            clahe_img, compressed_img = preprocess_image(image)
+            original_image = image
+            processed_image = clahe_img
+            
+            # Analyze image
+            buffer = io.BytesIO()
+            compressed_img.save(buffer, format="JPEG")
+            image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            analyzed_ingredients = analyze_image_gemini(image_bytes)
 
     else:
         image_file = st.camera_input("Take a picture")
         if image_file is not None:
-            # Only process new images
-            current_bytes = image_file.getvalue()
-            if st.session_state.current_image_bytes != current_bytes:
-                st.session_state.current_image_bytes = current_bytes
-                image = Image.open(image_file)
-                
-                # Apply preprocessing and store in session state
-                clahe_img, compressed_img = preprocess_image(image)
-                st.session_state.original_image = image
-                st.session_state.processed_image = clahe_img
-                
-                # Convert processed image to JPEG bytes
-                buffer = io.BytesIO()
-                compressed_img.save(buffer, format="JPEG")
-                # Convert binary image data to base64 string for API transmission
-                image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
+            image = Image.open(image_file)
+            
+            # Apply preprocessing
+            clahe_img, compressed_img = preprocess_image(image)
+            original_image = image
+            processed_image = clahe_img
+            
+            # Convert processed image to JPEG bytes
+            buffer = io.BytesIO()
+            compressed_img.save(buffer, format="JPEG")
+            # Convert binary image data to base64 string for API transmission
+            image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            analyzed_ingredients = analyze_image_gemini(image_bytes)
 
-    # Display images if they exist in session state
-    if st.session_state.original_image is not None:
+    # Display images if they exist
+    if original_image is not None:
         st.subheader("Image Processing Results ⚙️")
         col1, col2 = st.columns(2)
         with col1:
             st.write("Original Image")
-            st.image(st.session_state.original_image, use_container_width=True)
+            st.image(original_image, use_container_width=True)
         with col2:
             st.write("Processed Image")
-            st.image(st.session_state.processed_image, use_container_width=True)
+            st.image(processed_image, use_container_width=True)
 
-    # Use stored ingredients for selection and recipe generation
-    if st.session_state.analyzed_ingredients:
+    # Use ingredients for selection and recipe generation
+    if analyzed_ingredients:
         st.subheader("Recognized Ingredients: 👀")
         
         with st.expander("Select Ingredients", expanded=True):
@@ -215,7 +201,7 @@ def main():
             selected_ingredients = {}
             
             cols = st.columns(3)
-            for index, ingredient in enumerate(st.session_state.analyzed_ingredients):
+            for index, ingredient in enumerate(analyzed_ingredients):
                 col_idx = index % 3
                 with cols[col_idx]:
                     selected_ingredients[ingredient] = st.checkbox(
