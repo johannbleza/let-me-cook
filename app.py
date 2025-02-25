@@ -153,11 +153,8 @@ def main():
     if 'processed_image' not in st.session_state:
         st.session_state.processed_image = None
 
-    # Try to load the logo, gracefully handle if not found
-    try:
-        st.image("./lmc.png", width=800)
-    except:
-        st.title("Let Me Cook! 👨🏻‍🍳🔥")
+    st.image("./lmc.png", use_container_width=True)
+    st.title("Let Me Cook! 👨🏻‍🍳🔥")
         
     st.write("Stop wasting food and start creating. Take a photo of your ingredients and receive instant recipe recommendation.")
 
@@ -221,12 +218,10 @@ def main():
             col1, col2 = st.columns(2)
             with col1:
                 st.write("Original Image")
-                # Remove the use_container_width parameter
-                st.image(st.session_state.original_image, width=300)
+                st.image(st.session_state.original_image, use_container_width=True)
             with col2:
                 st.write("Processed Image")
-                # Remove the use_container_width parameter
-                st.image(st.session_state.processed_image, width=300)
+                st.image(st.session_state.processed_image, use_container_width=True)
         except Exception as e:
             st.error(f"Error displaying images: {e}")
 
