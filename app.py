@@ -221,10 +221,12 @@ def main():
             col1, col2 = st.columns(2)
             with col1:
                 st.write("Original Image")
-                st.image(st.session_state.original_image, use_container_width=True)
+                # Remove the use_container_width parameter
+                st.image(st.session_state.original_image, width=300)
             with col2:
                 st.write("Processed Image")
-                st.image(st.session_state.processed_image, use_container_width=True)
+                # Remove the use_container_width parameter
+                st.image(st.session_state.processed_image, width=300)
         except Exception as e:
             st.error(f"Error displaying images: {e}")
 
