@@ -40,28 +40,33 @@ def compress_image(image, max_size=(800, 800), quality=85):
     # Compress image
     buffer = io.BytesIO()
     image.save(buffer, format='JPEG', quality=quality, optimize=True)
+    buffer.seek(0)
     compressed_image = Image.open(buffer)
     
     return compressed_image
 
 def preprocess_image(image):
-    # First compress and resize the image
-    compressed_img = compress_image(image)
-    
-    # Convert PIL Image to numpy array
-    img_array = np.array(compressed_img)
-    
-    # Apply CLAHE with optimized parameters
-    clahe = exposure.equalize_adapthist(
-        img_array, 
-        clip_limit=0.05,
-        nbins=128  
-    )
-    
-    # Convert processed image back to PIL format
-    clahe_img = Image.fromarray((clahe * 255).astype(np.uint8))
-    
-    return clahe_img, compressed_img
+    try:
+        # First compress and resize the image
+        compressed_img = compress_image(image)
+        
+        # Convert PIL Image to numpy array
+        img_array = np.array(compressed_img)
+        
+        # Apply CLAHE with optimized parameters
+        clahe = exposure.equalize_adapthist(
+            img_array, 
+            clip_limit=0.05,
+            nbins=128  
+        )
+        
+        # Convert processed image back to PIL format
+        clahe_img = Image.fromarray((clahe * 255).astype(np.uint8))
+        
+        return clahe_img, compressed_img
+    except Exception as e:
+        st.error(f"Error during image preprocessing: {e}")
+        return None, None
 
 def analyze_image_gemini(image_bytes):
     # Analyzes an image and extracts ingredients using Gemini
@@ -138,62 +143,93 @@ def get_recipes_gemini(ingredients):
         return None
 
 def main():
-    # st.image("./lmc.png", width=800)  # Changed from use_container_width to width parameter
-    st.title("Let Me Cook! 👨🏻‍🍳🔥")
+    # Initialize session state
+    if 'analyzed_ingredients' not in st.session_state:
+        st.session_state.analyzed_ingredients = None
+    if 'current_image_bytes' not in st.session_state:
+        st.session_state.current_image_bytes = None
+    if 'original_image' not in st.session_state:
+        st.session_state.original_image = None
+    if 'processed_image' not in st.session_state:
+        st.session_state.processed_image = None
+
+    # Try to load the logo, gracefully handle if not found
+    try:
+        st.image("./lmc.png", width=800)
+    except:
+        st.title("Let Me Cook! 👨🏻‍🍳🔥")
+        
     st.write("Stop wasting food and start creating. Take a photo of your ingredients and receive instant recipe recommendation.")
 
     source = st.radio("Select Image Source", ("Upload an image 🖼️", "Use Camera 📸"))
-    
-    original_image = None
-    processed_image = None
-    analyzed_ingredients = None
 
     if source == "Upload an image 🖼️":
         uploaded_file = st.file_uploader("Upload an image of ingredients", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
-            image = Image.open(uploaded_file)
-            
-            # Apply preprocessing
-            clahe_img, compressed_img = preprocess_image(image)
-            original_image = image
-            processed_image = clahe_img
-            
-            # Analyze image
-            buffer = io.BytesIO()
-            compressed_img.save(buffer, format="JPEG")
-            image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            analyzed_ingredients = analyze_image_gemini(image_bytes)
+            # Only process new images
+            current_bytes = uploaded_file.getvalue()
+            if st.session_state.current_image_bytes != current_bytes:
+                st.session_state.current_image_bytes = current_bytes
+                try:
+                    image = Image.open(uploaded_file)
+                    
+                    # Apply preprocessing and store in session state
+                    clahe_img, compressed_img = preprocess_image(image)
+                    if clahe_img is not None and compressed_img is not None:
+                        st.session_state.original_image = image
+                        st.session_state.processed_image = clahe_img
+                        
+                        # Analyze new image
+                        buffer = io.BytesIO()
+                        compressed_img.save(buffer, format="JPEG")
+                        buffer.seek(0)  # Reset buffer position to the beginning
+                        image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                        st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
+                except Exception as e:
+                    st.error(f"Error processing uploaded image: {e}")
 
     else:
         image_file = st.camera_input("Take a picture")
         if image_file is not None:
-            image = Image.open(image_file)
-            
-            # Apply preprocessing
-            clahe_img, compressed_img = preprocess_image(image)
-            original_image = image
-            processed_image = clahe_img
-            
-            # Convert processed image to JPEG bytes
-            buffer = io.BytesIO()
-            compressed_img.save(buffer, format="JPEG")
-            # Convert binary image data to base64 string for API transmission
-            image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            analyzed_ingredients = analyze_image_gemini(image_bytes)
+            # Only process new images
+            current_bytes = image_file.getvalue()
+            if st.session_state.current_image_bytes != current_bytes:
+                st.session_state.current_image_bytes = current_bytes
+                try:
+                    image = Image.open(image_file)
+                    
+                    # Apply preprocessing and store in session state
+                    clahe_img, compressed_img = preprocess_image(image)
+                    if clahe_img is not None and compressed_img is not None:
+                        st.session_state.original_image = image
+                        st.session_state.processed_image = clahe_img
+                        
+                        # Convert processed image to JPEG bytes
+                        buffer = io.BytesIO()
+                        compressed_img.save(buffer, format="JPEG")
+                        buffer.seek(0)  # Reset buffer position to the beginning
+                        # Convert binary image data to base64 string for API transmission
+                        image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                        st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
+                except Exception as e:
+                    st.error(f"Error processing camera image: {e}")
 
-    # Display images if they exist
-    if original_image is not None:
-        st.subheader("Image Processing Results ⚙️")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("Original Image")
-            st.image(original_image, use_container_width=True)
-        with col2:
-            st.write("Processed Image")
-            st.image(processed_image, use_container_width=True)
+    # Display images if they exist in session state
+    if st.session_state.original_image is not None and st.session_state.processed_image is not None:
+        try:
+            st.subheader("Image Processing Results ⚙️")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("Original Image")
+                st.image(st.session_state.original_image, use_container_width=True)
+            with col2:
+                st.write("Processed Image")
+                st.image(st.session_state.processed_image, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error displaying images: {e}")
 
-    # Use ingredients for selection and recipe generation
-    if analyzed_ingredients:
+    # Use stored ingredients for selection and recipe generation
+    if st.session_state.analyzed_ingredients:
         st.subheader("Recognized Ingredients: 👀")
         
         with st.expander("Select Ingredients", expanded=True):
@@ -201,7 +237,7 @@ def main():
             selected_ingredients = {}
             
             cols = st.columns(3)
-            for index, ingredient in enumerate(analyzed_ingredients):
+            for index, ingredient in enumerate(st.session_state.analyzed_ingredients):
                 col_idx = index % 3
                 with cols[col_idx]:
                     selected_ingredients[ingredient] = st.checkbox(
@@ -223,13 +259,19 @@ def main():
                     st.subheader("Recipe Suggestions: 😋")
                     recipes = recipe_text.split("---")
                     for recipe in recipes:
-                        start = recipe.find("Recipe")
-                        end = recipe.find("Ingredients")
-                        with st.expander(f"{recipe[start:end].replace('*','')}"):
-                            st.write(recipe.replace(recipe[start:end].strip(),""))
+                        if recipe.strip():  # Skip empty recipes
+                            try:
+                                start = recipe.find("Recipe")
+                                end = recipe.find("Ingredients")
+                                if start >= 0 and end > start:
+                                    with st.expander(f"{recipe[start:end].replace('*','')}"):
+                                        st.write(recipe.replace(recipe[start:end].strip(),""))
+                            except Exception as e:
+                                st.error(f"Error displaying recipe: {e}")
             else:
                 st.warning("Please select at least one ingredient to get recipes.")
     
     st.caption("Created by Johann.dev")
 
-main()
+if __name__ == "__main__":
+    main()
