@@ -148,7 +148,7 @@ def main():
     if 'processed_image' not in st.session_state:
         st.session_state.processed_image = None
 
-    st.image("./lmc.png", use_container_width=True)
+    # st.image("./lmc.png", width=800)  # Changed from use_container_width to width parameter
     st.title("Let Me Cook! 👨🏻‍🍳🔥")
     st.write("Stop wasting food and start creating. Take a photo of your ingredients and receive instant recipe recommendation.")
 
@@ -246,5 +246,4 @@ def main():
     
     st.caption("Created by Johann.dev")
 
-if __name__ == "__main__":
-    main()
+main()
