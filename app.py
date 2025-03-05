@@ -150,12 +150,9 @@ def main():
         st.session_state.current_image_bytes = None
     if 'original_image' not in st.session_state:
         st.session_state.original_image = None
-    if 'processed_image' not in st.session_state:
-        st.session_state.processed_image = None
 
     st.image("./lmc.png", use_container_width=True)
     st.title("Let Me Cook! 👨🏻‍🍳🔥")
-        
     st.write("Stop wasting food and start creating. Take a photo of your ingredients and receive instant recipe recommendation.")
 
     source = st.radio("Select Image Source", ("Upload an image 🖼️", "Use Camera 📸"))
@@ -169,19 +166,14 @@ def main():
                 st.session_state.current_image_bytes = current_bytes
                 try:
                     image = Image.open(uploaded_file)
+                    st.session_state.original_image = image
                     
-                    # Apply preprocessing and store in session state
-                    clahe_img, compressed_img = preprocess_image(image)
-                    if clahe_img is not None and compressed_img is not None:
-                        st.session_state.original_image = image
-                        st.session_state.processed_image = clahe_img
-                        
-                        # Analyze new image
-                        buffer = io.BytesIO()
-                        compressed_img.save(buffer, format="JPEG")
-                        buffer.seek(0)  # Reset buffer position to the beginning
-                        image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                        st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
+                    # Analyze new image
+                    buffer = io.BytesIO()
+                    image.save(buffer, format="JPEG")
+                    buffer.seek(0)  # Reset buffer position to the beginning
+                    image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                    st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
                 except Exception as e:
                     st.error(f"Error processing uploaded image: {e}")
 
@@ -194,36 +186,25 @@ def main():
                 st.session_state.current_image_bytes = current_bytes
                 try:
                     image = Image.open(image_file)
+                    st.session_state.original_image = image
                     
-                    # Apply preprocessing and store in session state
-                    clahe_img, compressed_img = preprocess_image(image)
-                    if clahe_img is not None and compressed_img is not None:
-                        st.session_state.original_image = image
-                        st.session_state.processed_image = clahe_img
-                        
-                        # Convert processed image to JPEG bytes
-                        buffer = io.BytesIO()
-                        compressed_img.save(buffer, format="JPEG")
-                        buffer.seek(0)  # Reset buffer position to the beginning
-                        # Convert binary image data to base64 string for API transmission
-                        image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                        st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
+                    # Convert image to JPEG bytes
+                    buffer = io.BytesIO()
+                    image.save(buffer, format="JPEG")
+                    buffer.seek(0)  # Reset buffer position to the beginning
+                    # Convert binary image data to base64 string for API transmission
+                    image_bytes = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                    st.session_state.analyzed_ingredients = analyze_image_gemini(image_bytes)
                 except Exception as e:
                     st.error(f"Error processing camera image: {e}")
 
-    # Display images if they exist in session state
-    if st.session_state.original_image is not None and st.session_state.processed_image is not None:
+    # Display the uploaded image if it exists in session state
+    if st.session_state.original_image is not None:
         try:
-            st.subheader("Image Processing Results ⚙️")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("Original Image")
-                st.image(st.session_state.original_image, use_container_width=True)
-            with col2:
-                st.write("Processed Image")
-                st.image(st.session_state.processed_image, use_container_width=True)
+            st.subheader("Uploaded Image 📷")
+            st.image(st.session_state.original_image, use_container_width=True)
         except Exception as e:
-            st.error(f"Error displaying images: {e}")
+            st.error(f"Error displaying image: {e}")
 
     # Use stored ingredients for selection and recipe generation
     if st.session_state.analyzed_ingredients:
