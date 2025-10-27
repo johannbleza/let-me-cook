@@ -1,1 +1,3 @@
 https://youtu.be/WjMyQIFk9iQ
+UPDATED: Replaced hardcoded Gemini API key in `app.py` to use Streamlit secrets or environment variable.
+Added `.streamlit/secrets.toml.example` and updated `.gitignore` to ignore the real secrets file.

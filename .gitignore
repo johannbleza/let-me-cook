@@ -1,0 +1,7 @@
+*.venv
+*.env
+
+
+# Ignore Streamlit secrets file which contains sensitive API keys
+.streamlit/secrets.toml
+

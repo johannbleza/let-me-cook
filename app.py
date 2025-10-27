@@ -7,8 +7,8 @@ from skimage import exposure
 import numpy as np
 
 # Configure Gemini API
-genai.configure(api_key="AIzaSyA6-uVGPaaUzTnCqwRMYSA3Ew-S4Q3364o")
-model = genai.GenerativeModel('gemini-1.5-flash')
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 st.set_page_config(
     page_title="Let Me Cook App",
